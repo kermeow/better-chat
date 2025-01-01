@@ -1,2 +1,3 @@
-# better-chat
-Better chat for sm64coopdx
+# Better Chat
+
+Better Chat mod for sm64coopdx
