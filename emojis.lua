@@ -1,12 +1,12 @@
----@class TileInfo
+---@class TileOffset
 ---@field x integer
 ---@field y integer
+
+---@class TileInfo : TileOffset
 ---@field w integer
 ---@field h integer
 
----@class EmojiAnimationDescriptor
----@field updates_per_frame integer
----@field frames TileInfo[]
+---@alias EmojiAnimationDescriptor (TileOffset | { delay: integer? })[]
 
 ---@class EmojiDescriptor
 ---@field name string
@@ -67,7 +67,7 @@ function add_emoji(name, aliases, textureName)
 	return emoji_idx
 end
 
----Adds an emoji that is a tile of a texture
+---Adds an emoji from a tilesheet
 ---@param name string
 ---@param aliases string[]
 ---@param textureName string
@@ -84,8 +84,27 @@ function add_emoji_tiled(name, aliases, textureName, tx, ty, tw, th)
 	return emoji_idx
 end
 
--- TODO: animated emojis
-
+---Adds an animated emoji from a tilesheet
+---@param name string
+---@param aliases string[]
+---@param textureName string
+---@param tw integer
+---@param th integer
+---@param animation EmojiAnimationDescriptor
+---@return integer
+function add_emoji_animated(name, aliases, textureName, tw, th, animation)
+	local emoji_idx = add_emoji_internal(
+		name,
+		aliases,
+		get_texture_info(textureName),
+		{ x = animation[1].x, y = animation[1].y, w = tw, h = th },
+		animation
+	)
+	if not emoji_idx then
+		error(string.format("Failed to add emoji (%s :%s:)", name, aliases[1]), 2)
+	end
+	return emoji_idx
+end
 
 ---Adds an alias to an existing emoji
 ---@param emojiIdx integer
