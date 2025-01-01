@@ -8,34 +8,35 @@
 --]]
 
 local function djui_hud_print_text_colored(string, x, y, scale)
-    if stringStart == nil then stringStart = 1 end
+	if stringStart == nil then stringStart = 1 end
 
-    local output = ''
-    local hex = ''
+	local output = ''
+	local hex = ''
 
-    local inSlash = false
-    for i = stringStart, #string do
-        local c = string:sub(i,i)
-        if c == '\\' then
-            inSlash = not inSlash
-            if not inSlash then
-                djui_hud_print_text(output, x, y, scale)
-                local r = tonumber(hex:sub(1,2), 16)
-                local g = tonumber(hex:sub(3,4), 16)
-                local b = tonumber(hex:sub(5,6), 16)
-                djui_hud_set_color(r, g, b, djui_hud_get_color().a)
-                djui_hud_print_text_colored(string:sub(i+1,#string), x + (djui_hud_measure_text(output)*scale), y, scale)
-                return
-            end
-        elseif not inSlash then
-            output = output .. c
-        else
-            if c ~= '#' then
-                hex = hex .. c
-            end
-        end
-    end
-    djui_hud_print_text(output, x, y, scale)
+	local inSlash = false
+	for i = stringStart, #string do
+		local c = string:sub(i, i)
+		if c == '\\' then
+			inSlash = not inSlash
+			if not inSlash then
+				djui_hud_print_text(output, x, y, scale)
+				local r = tonumber(hex:sub(1, 2), 16)
+				local g = tonumber(hex:sub(3, 4), 16)
+				local b = tonumber(hex:sub(5, 6), 16)
+				djui_hud_set_color(r, g, b, djui_hud_get_color().a)
+				djui_hud_print_text_colored(string:sub(i + 1, #string), x + (djui_hud_measure_text(output) * scale), y,
+					scale)
+				return
+			end
+		elseif not inSlash then
+			output = output .. c
+		else
+			if c ~= '#' then
+				hex = hex .. c
+			end
+		end
+	end
+	djui_hud_print_text(output, x, y, scale)
 end
 
 local function string_remove_hex(msg)
@@ -51,7 +52,18 @@ local function string_remove_hex(msg)
 	return output
 end
 
+local function string_split(s, sep)
+	local parts = {}
+	local pattern = "%S+"
+	if sep ~= nil then pattern = "([^" .. sep .. "]+)" end
+	for part in string.gmatch(s, pattern) do
+		table.insert(parts, part)
+	end
+	return parts
+end
+
 local function split_text_into_lines(text, length)
+	--[[
     local words = {}
     for word in text:gmatch("%S+") do
         table.insert(words, word)
@@ -71,6 +83,47 @@ local function split_text_into_lines(text, length)
     table.insert(lines, currentLine) -- add the last line
 
     return lines
+	--]]
+
+	-- TRIED AND TESTED CODE RIPPED FROM BUBBLE CHAT! (its ok because i made it)
+	-- remembers to handle when one word goes past the limit
+	-- edited to support colors
+	local lines = { "" }
+	local current_line = 1
+
+	local words = string_split(text, " ")
+
+	for i, word in next, words do
+		local working_line = lines[current_line]
+		if i ~= 1 then working_line = working_line .. " " end
+		working_line = working_line .. word
+
+		local word_width = djui_hud_measure_text(string_remove_hex(word))
+		if word_width >= length then
+			working_line = lines[current_line]
+			if i ~= 1 then working_line = working_line .. " " end
+			for char_index = 1, word:len() do
+				local character = word:sub(char_index, char_index)
+				working_line = working_line .. character
+
+				local line_width = djui_hud_measure_text(string_remove_hex(working_line))
+				if line_width > length then
+					current_line = current_line + 1
+					working_line = character
+				end
+				lines[current_line] = working_line
+			end
+		end
+
+		local line_width = djui_hud_measure_text(string_remove_hex(working_line))
+		if line_width > length then
+			current_line = current_line + 1
+			working_line = word
+		end
+		lines[current_line] = working_line
+	end
+
+	return lines
 end
 
 local function string_table_get_longest(stringTable)
@@ -82,10 +135,10 @@ local function string_table_get_longest(stringTable)
 	return maxLength
 end
 
-local MATH_DIVIDE_60 = 1/60
-local hourOffset = ((get_date_and_time().hour - math.floor(get_time()*MATH_DIVIDE_60*MATH_DIVIDE_60)))*60*60
+local MATH_DIVIDE_60 = 1 / 60
+local hourOffset = ((get_date_and_time().hour - math.floor(get_time() * MATH_DIVIDE_60 * MATH_DIVIDE_60))) * 60 * 60
 local chatLog = {
-	{name = "\\#dcdcdc\\Better\\#545454\\Chat", msg = "Welcome to Better Chat!", time = get_time() + hourOffset}
+	{ name = "\\#dcdcdc\\Better\\#545454\\Chat", msg = "Welcome to Better Chat!", time = get_time() + hourOffset }
 }
 
 local function hud_render()
@@ -94,18 +147,23 @@ local function hud_render()
 	local height = djui_hud_get_screen_height()
 	djui_hud_set_font(djui_menu_get_font())
 
+	local y = height
 	for i = #chatLog, 1, -1 do
 		local message = chatLog[i]
-		local timeString = tostring(math.floor(message.time*MATH_DIVIDE_60*MATH_DIVIDE_60)%12) .. ":" .. string.format("%02i", math.floor(message.time*MATH_DIVIDE_60)%60)
-		local messageString = (message.name ~= nil and message.name .. "\\#ffffff\\: " or "") .. message.msg .. " \\#545454\\(" .. timeString .. ")"
-		local messageTable = split_text_into_lines(messageString, width*0.33)
-		local messageLength = string_table_get_longest(messageTable)
-		local messageY = height - (#chatLog - (#chatLog[i] - 1))*33
+		local hours = math.floor(message.time * MATH_DIVIDE_60 * MATH_DIVIDE_60)
+		local minutes = math.floor(message.time * MATH_DIVIDE_60)
+		local timeString = tostring(hours % 12) .. ":" .. string.format("%02i", minutes % 60)
+		local author = message.name ~= nil and message.name .. "\\#ffffff\\: " or ""
+		local messageString = author .. message.msg .. " \\#545454\\(" .. timeString .. ")"
+		local messageLines = split_text_into_lines(messageString, width / 3)
+		local messageLength = string_table_get_longest(messageLines)
+		y = y - (33 * #messageLines)
 		djui_hud_set_color(0, 0, 0, 200)
-		djui_hud_render_rect(width - messageLength - 4, messageY, messageLength + 4, (#messageTable - 1)*33)
-		for c = 1, #messageTable do
+		djui_hud_render_rect(width - messageLength - 4, y, messageLength + 4, #messageLines * 33)
+		for c = 1, #messageLines do
 			djui_hud_set_color(255, 255, 255, 255)
-			djui_hud_print_text_colored(messageTable[c], width - djui_hud_measure_text(string_remove_hex(messageTable[c])) - 2, messageY + (c - 1)*33, 1)
+			djui_hud_print_text_colored(messageLines[c],
+				width - djui_hud_measure_text(string_remove_hex(messageLines[c])) - 2, y + (c - 1) * 33, 1)
 		end
 	end
 end
