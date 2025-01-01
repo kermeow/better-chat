@@ -85,3 +85,19 @@ function add_emoji_tiled(name, aliases, textureName, tx, ty, tw, th)
 end
 
 -- TODO: animated emojis
+
+
+---Adds an alias to an existing emoji
+---@param emojiIdx integer
+---@param alias string
+function add_emoji_alias(emojiIdx, alias)
+	if emojis_by_alias[alias] ~= nil then
+		error(string.format("Alias :%s: is already used", alias), 2)
+	end
+	if #emojis < emojiIdx then
+		error("Can't add alias to non-existent emoji")
+	end
+
+	table.insert(emojis[emojiIdx].alias, alias)
+	emojis_by_alias[alias] = emojiIdx
+end
